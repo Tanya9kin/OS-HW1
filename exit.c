@@ -498,13 +498,16 @@ NORET_TYPE void do_exit(long code)
 	tsk->flags |= PF_EXITING;
 	del_timer_sync(&tsk->real_timer);
 
-	if (current->p_opptr->zombies_limit > -1) {
-		list_add(&current->zombies_list ,&current->p_opptr->last_own_zombie->zombies_list);
-		current->p_opptr->last_own_zombie = current;
+	if (current->p_opptr->zombies_limit != -1) {
 		if (current->p_opptr->zombies_count == 0) {
 			current->p_opptr->first_own_zombie = current;
+			current->p_opptr->last_own_zombie = current;
+			INIT_LIST_HEAD(&current->zombies_list);
+		} else {
+			list_add(&current->zombies_list ,&current->p_opptr->last_own_zombie->zombies_list);
+			current->p_opptr->last_own_zombie = current;
 		}
-		current->p_opptr->zombies_count++;
+		current->p_opptr->zombies_count += 1;
 	}
 
 fake_volatile:
@@ -621,6 +624,24 @@ repeat:
 				}
 				goto end_wait4;
 			case TASK_ZOMBIE:
+				if (current->zombies_limit != -1) {
+					if (p == current->first_own_zombie) {
+						current->first_own_zombie = list_entry(p->zombies_list.next ,task_t, zombies_list);
+					}
+
+					if (p == current->last_own_zombie) {
+						current->last_own_zombie = list_entry(p->zombies_list.prev ,task_t, zombies_list);
+					}
+
+					list_del(&p->zombies_list);
+					current->zombies_count -= 1;
+
+					if (current->zombies_count == 0) {
+						current->first_own_zombie = NULL;
+						current->last_own_zombie = NULL;
+					}
+				}
+
 				current->times.tms_cutime += p->times.tms_utime + p->times.tms_cutime;
 				current->times.tms_cstime += p->times.tms_stime + p->times.tms_cstime;
 				read_unlock(&tasklist_lock);

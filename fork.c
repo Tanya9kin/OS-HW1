@@ -594,8 +594,10 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 
 	if ((clone_flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
 		return -EINVAL;
-	if (current->zombies_count > current->zombies_limit)
-		return -EINVAL;
+
+	// ZOMBIES ADDITION
+	if (current->zombies_limit != -1 && current->zombies_count > current->zombies_limit)		
+		return -ENOMEM;
 
 	retval = -EPERM;
 
@@ -742,6 +744,14 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	}
 	__restore_flags(flags);
 
+
+	//zombie land
+	p->zombies_limit = -1;
+	p->zombies_count = 0;
+	p->first_own_zombie = NULL;
+	p->last_own_zombie = NULL;
+	INIT_LIST_HEAD(&p->zombies_list);
+
 	/*
 	 * Ok, add it to the run-queues and make it
 	 * visible to the rest of the system.
@@ -786,15 +796,6 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 		 * COW overhead when the child exec()s afterwards.
 		 */
 		current->need_resched = 1;
-
-	//zombie land
-	current->zombies_limit = -1;
-	current->zombies_count = 0;
-	current->first_own_zombie = NULL;
-	current->last_own_zombie = NULL;
-	current->zombies_list = LIST_HEAD_INIT(current->zombies_list);
-
-
 
 fork_out:
 	return retval;

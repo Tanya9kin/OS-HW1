@@ -562,10 +562,10 @@ extern struct exec_domain	default_exec_domain;
     blocked:		{{0}},						\
     alloc_lock:		SPIN_LOCK_UNLOCKED,				\
     journal_info:	NULL,						\
-    zombies_limit: -1							\
-    zombies_count: 0							\
-    first_own_zombie: NULL						\
-    last_own_zombie: NULL						\
+    zombies_limit: -1,							\
+    zombies_count: 0,							\
+    first_own_zombie: NULL,						\
+    last_own_zombie: NULL,						\
     zombies_list: LIST_HEAD_INIT(tsk.zombies_list) 	\
 }
 
