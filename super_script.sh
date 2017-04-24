@@ -8,7 +8,7 @@ make bzImage 2> errors.txt 1> /dev/null
 if [ $? != 0 ]; then 
 	cat errors.txt
 	rm -f errors.txt
-	return
+	exit
 fi
 
 echo "make bzImage done!"
@@ -17,7 +17,7 @@ make modules 2> errors.txt 1> /dev/null
 if [ $? != 0 ]; then 
 	cat errors.txt
 	rm -f errors.txt
-	return
+	exit
 fi
 
 echo "make modules done!"
@@ -26,7 +26,7 @@ make modules_install 2> errors.txt 1> /dev/null
 if [ $? != 0 ]; then 
 	cat errors.txt
 	rm -f errors.txt
-	return
+	exit
 fi
 
 echo "make modules_install done!"
@@ -37,7 +37,7 @@ mkinitrd -f 2.4.18-14custom.img 2.4.18-14custom 2> errors.txt 1> /dev/null
 if [ $? != 0 ]; then 
 	cat errors.txt
 	rm -f errors.txt
-	return
+	exit
 fi
 
 echo "makeinitrd done!"

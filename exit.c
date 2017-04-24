@@ -499,13 +499,30 @@ NORET_TYPE void do_exit(long code)
 	del_timer_sync(&tsk->real_timer);
 
 	if (current->p_opptr->zombies_limit != -1) {
+		printk("parent is: %ld\n", (long)current->p_opptr->pid);
 		if (current->p_opptr->zombies_count == 0) {
+			printk("adding zombie %ld as first zombie\n", (long)current->pid);
 			current->p_opptr->first_own_zombie = current;
-			// INIT_LIST_HEAD(&current->zombies_list);
+			// printk("result: %ld\n", (long)list_entry(&current->p_opptr->first_own_zombie->zombies_list.next.next, task_t, zombies_list)->pid);
+			INIT_LIST_HEAD(&current->zombies_list);
 		} else {
-			list_add_tail(&current->zombies_list ,&current->p_opptr->first_own_zombie->zombies_list);
+			printk("adding zombie %ld as NOT first zombie\n", (long)current->pid);
+			current->p_opptr->first_own_zombie->zombies_list.prev->next = &current->zombies_list;
+			current->zombies_list.prev = current->p_opptr->first_own_zombie->zombies_list.prev;
+			current->p_opptr->first_own_zombie->zombies_list.prev = &current->zombies_list;
+			current->zombies_list.next = &current->p_opptr->first_own_zombie->zombies_list;
+			printk("%ld is after %ld and before %ld\n",(long)current->pid, (long)list_entry(current->zombies_list.prev,task_t,zombies_list)->pid, (long)list_entry(current->zombies_list.next,task_t,zombies_list)->pid);
+			// list_add(&current->zombies_list ,&current->p_opptr->first_own_zombie->zombies_list.prev);
+			// printk("result: %ld\n", (long)list_entry(&current->p_opptr->first_own_zombie->zombies_list.next.next, task_t, zombies_list)->pid);
 		}
 		current->p_opptr->zombies_count += 1;
+
+		struct list_head *it = &current->p_opptr->first_own_zombie->zombies_list;
+		do {
+			printk("%ld ", (long)list_entry(it, task_t, zombies_list)->pid);
+			it = it->next;
+		} while (it != &current->p_opptr->first_own_zombie->zombies_list);
+		printk("\n");
 	}
 
 fake_volatile:
@@ -622,9 +639,10 @@ repeat:
 				}
 				goto end_wait4;
 			case TASK_ZOMBIE:
-				if (current->zombies_limit != -1) {
-					struct list_head *it;
-					list_for_each(it,current->first_own_zombie->zombies_list.prev) {
+				if (current->zombies_limit != -1 && current->zombies_count > 0) {
+					struct list_head *it = &current->first_own_zombie->zombies_list;
+					do {
+						printk("comparing %ld with %ld\n", (long)p->pid, (long)list_entry(it,task_t,zombies_list)->pid);
 						if (p->pid == list_entry(it,task_t,zombies_list)->pid) {
 							current->zombies_count -= 1;
 							
@@ -637,7 +655,9 @@ repeat:
 							list_del(&p->zombies_list);
 							break;
 						}
-					}
+
+						it = &it->next;
+					} while (it != &current->first_own_zombie->zombies_list);
 					// if (p == current->first_own_zombie) {
 					// 	current->first_own_zombie = list_entry(p->zombies_list.next ,task_t, zombies_list);
 					// }
