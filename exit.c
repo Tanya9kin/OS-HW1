@@ -501,9 +501,9 @@ NORET_TYPE void do_exit(long code)
 	if (current->p_opptr->zombies_limit != -1) {
 		if (current->p_opptr->zombies_count == 0) {
 			current->p_opptr->first_own_zombie = current;
-			INIT_LIST_HEAD(&current->zombies_list);
+			// INIT_LIST_HEAD(&current->zombies_list);
 		} else {
-			list_add(&current->zombies_list ,&current->p_opptr->first_own_zombie->zombies_list.prev);
+			list_add_tail(&current->zombies_list ,&current->p_opptr->first_own_zombie->zombies_list);
 		}
 		current->p_opptr->zombies_count += 1;
 	}
@@ -623,16 +623,31 @@ repeat:
 				goto end_wait4;
 			case TASK_ZOMBIE:
 				if (current->zombies_limit != -1) {
-					if (p == current->first_own_zombie) {
-						current->first_own_zombie = list_entry(p->zombies_list.next ,task_t, zombies_list);
+					struct list_head *it;
+					list_for_each(it,current->first_own_zombie->zombies_list.prev) {
+						if (p->pid == list_entry(it,task_t,zombies_list)->pid) {
+							current->zombies_count -= 1;
+							
+							if (current->zombies_count == 0) {
+								current->first_own_zombie = NULL;
+							} else if (current->first_own_zombie == p) {
+								current->first_own_zombie = list_entry(p->zombies_list.next ,task_t, zombies_list);
+							}
+							
+							list_del(&p->zombies_list);
+							break;
+						}
 					}
+					// if (p == current->first_own_zombie) {
+					// 	current->first_own_zombie = list_entry(p->zombies_list.next ,task_t, zombies_list);
+					// }
 
-					list_del(&p->zombies_list);
-					current->zombies_count -= 1;
+					// list_del(&p->zombies_list);
+					// current->zombies_count -= 1;
 
-					if (current->zombies_count == 0) {
-						current->first_own_zombie = NULL;
-					}
+					// if (current->zombies_count == 0) {
+					// 	current->first_own_zombie = NULL;
+					// }
 				}
 
 				current->times.tms_cutime += p->times.tms_utime + p->times.tms_cutime;
