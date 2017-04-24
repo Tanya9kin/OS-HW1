@@ -25,14 +25,14 @@ int sys_get_max_zombies() {
 
 int sys_get_zombie_pid(int n) {
 	if(current->zombies_count <=  n || n < 0)
-		return -ESRCH;
+		return -EINVAL;
 
 	if (current->zombies_limit == -1)
 		return -EINVAL;
 
 	struct list_head *it;
 	int count = 0;
-	list_for_each(it,&current->first_own_zombie->zombies_list) {
+	list_for_each(it,current->first_own_zombie->zombies_list.prev) {
 		if(count == n)
 			break;
 		count++;
@@ -61,13 +61,18 @@ int sys_give_up_zombie(int n, pid_t adopter_pid) {
 		n + adopter->zombies_count > adopter->zombies_limit)
 			return -EINVAL;
 
+	if (n == 0) return 0;
+
 	struct list_head *it;
 	int count = 0;
-	list_for_each(it,&current->first_own_zombie->zombies_list) {
+	list_for_each(it,current->first_own_zombie->zombies_list.prev) {
 		if(count == n-1)
 			break;
 		count++;
 	}
+
+	current->zombies_count -= n;
+	adopter->zombies_count += n;
 
 	struct list_head* nth_member = it->next;
 	it->next = &current->first_own_zombie->zombies_list;
@@ -77,9 +82,25 @@ int sys_give_up_zombie(int n, pid_t adopter_pid) {
 	current->last_own_zombie->zombies_list.next = nth_member;
 
 	current->first_own_zombie = list_entry(nth_member,task_t,zombies_list);
-	current->zombies_count -= n;
-	adopter->zombies_count += n;
 	list_splice(it->next, &adopter->last_own_zombie->zombies_list);
+	adopter->last_own_zombie = list_entry(&adopter->first_own_zombie->zombies_list.prev, task_t, zombies_list);
+
+	// if (current->zombies_count == 0) {
+	// 	list_splice(&current->first_own_zombie->zombies_list, &adopter->last_own_zombie->zombies_list);
+	// 	current->first_own_zombie = NULL;
+	// 	current->last_own_zombie = NULL;
+	// } else {
+	// 	struct list_head* nth_member = it->next;
+	// 	it->next = &current->first_own_zombie->zombies_list;
+	// 	current->first_own_zombie->zombies_list.prev = it;
+
+	// 	nth_member->prev = &current->last_own_zombie->zombies_list;
+	// 	current->last_own_zombie->zombies_list.next = nth_member;
+
+	// 	current->first_own_zombie = list_entry(nth_member,task_t,zombies_list);
+	// 	list_splice(it->next, &adopter->last_own_zombie->zombies_list);
+	// }
+	// adopter->last_own_zombie = list_entry(&adopter->first_own_zombie->zombies_list.prev, task_t, zombies_list);		
 
 	return 0;
 }
