@@ -78,13 +78,14 @@ int sys_give_up_zombie(int n, pid_t adopter_pid) {
 	it->next = &current->first_own_zombie->zombies_list;
 	current->first_own_zombie->zombies_list.prev = it;
 
-	nth_member->prev = &current->last_own_zombie->zombies_list;
-	current->last_own_zombie->zombies_list.next = nth_member;
+	nth_member->prev = &current->first_own_zombie->zombies_list.prev;
+	current->first_own_zombie->zombies_list.prev->zombies_list.next = nth_member;
 
 	current->first_own_zombie = list_entry(nth_member,task_t,zombies_list);
-	list_splice(it->next, &adopter->last_own_zombie->zombies_list);
-	adopter->last_own_zombie = list_entry(&adopter->first_own_zombie->zombies_list.prev, task_t, zombies_list);
+	list_splice(it->next, &adopter->first_own_zombie->zombies_list.prev);
+	adopter->first_own_zombie->zombies_list.prev = list_entry(&adopter->first_own_zombie->zombies_list.prev, task_t, zombies_list);
 
+	
 	// if (current->zombies_count == 0) {
 	// 	list_splice(&current->first_own_zombie->zombies_list, &adopter->last_own_zombie->zombies_list);
 	// 	current->first_own_zombie = NULL;

@@ -749,7 +749,6 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	p->zombies_limit = -1;
 	p->zombies_count = 0;
 	p->first_own_zombie = NULL;
-	p->last_own_zombie = NULL;
 	INIT_LIST_HEAD(&p->zombies_list);
 
 	/*

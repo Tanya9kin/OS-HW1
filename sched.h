@@ -455,7 +455,7 @@ struct task_struct {
 /* additions for zombies handling mechanism */
 	unsigned long zombies_limit;
 	unsigned long zombies_count;
-	task_t *first_own_zombie, *last_own_zombie;
+	task_t *first_own_zombie;
 	list_t zombies_list;
 };
 
