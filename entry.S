@@ -656,7 +656,7 @@ ENTRY(sys_call_table)
 	.long SYMBOL_NAME(sys_get_max_zombies) /* 245 */
 	.long SYMBOL_NAME(sys_get_zombie_pid)
 	.long SYMBOL_NAME(sys_give_up_zombie)
-
+	
 	.rept NR_syscalls-(.-sys_call_table)/4
 		.long SYMBOL_NAME(sys_ni_syscall)
 	.endr

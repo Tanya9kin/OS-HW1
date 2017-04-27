@@ -2,17 +2,19 @@
 #include <linux/sched.h>
 
 int sys_set_max_zombies(int max, pid_t pid) {
-	if(max < 0)
+	if (max < 0)
 		return -EINVAL;
-	if(pid < 0)
+	if (pid < 0)
 		return -ESRCH;
+
 	find_task_by_pid(pid)->zombies_limit = max;
 	return 0;
 }
 
 int sys_get_zombies_count(pid_t pid) {
-	if(pid < 0)
+	if (pid < 0)
 		return -ESRCH;
+
 	return find_task_by_pid(pid)->zombies_count;
 }
 
@@ -30,15 +32,15 @@ int sys_get_zombie_pid(int n) {
 	if (current->zombies_limit == -1)
 		return -EINVAL;
 
-	struct list_head *it;
-	int count = 0;
-	list_for_each(it,current->first_own_zombie->zombies_list.prev) {
-		if(count == n)
-			break;
-		count++;
+	list_t *it;
+	int i = 0;
+	
+	list_for_each(it, &current->zombies_list) {
+		if (i == n) break;
+		i++;
 	}
 
-	return list_entry(it,task_t,zombies_list)->pid;
+	return list_entry(it, task_t, zombies_list)->pid;
 }
 
 int sys_give_up_zombie(int n, pid_t adopter_pid) {
@@ -61,46 +63,26 @@ int sys_give_up_zombie(int n, pid_t adopter_pid) {
 		n + adopter->zombies_count > adopter->zombies_limit)
 			return -EINVAL;
 
-	if (n == 0) return 0;
+	list_t *it, *temp;
+	int i = 0;
+	
+	list_for_each_safe(it, temp, &current->zombies_list) {
+		if (i == n) break;
+		task_t *child_to_reparent = list_entry(it, task_t, zombies_list);
 
-	struct list_head *it;
-	int count = 0;
-	list_for_each(it,current->first_own_zombie->zombies_list.prev) {
-		if(count == n-1)
-			break;
-		count++;
+		list_del(it);
+		list_add_tail(it, &adopter->zombies_list);
+
+		REMOVE_LINKS(child_to_reparent);
+		child_to_reparent->p_opptr = adopter;
+		child_to_reparent->p_pptr = adopter;
+		SET_LINKS(child_to_reparent);
+		
+		i++;
 	}
 
-	current->zombies_count -= n;
 	adopter->zombies_count += n;
-
-	struct list_head* nth_member = it->next;
-	it->next = &current->first_own_zombie->zombies_list;
-	current->first_own_zombie->zombies_list.prev = it;
-
-	nth_member->prev = &current->last_own_zombie->zombies_list;
-	current->last_own_zombie->zombies_list.next = nth_member;
-
-	current->first_own_zombie = list_entry(nth_member,task_t,zombies_list);
-	list_splice(it->next, &adopter->last_own_zombie->zombies_list);
-	adopter->last_own_zombie = list_entry(&adopter->first_own_zombie->zombies_list.prev, task_t, zombies_list);
-
-	// if (current->zombies_count == 0) {
-	// 	list_splice(&current->first_own_zombie->zombies_list, &adopter->last_own_zombie->zombies_list);
-	// 	current->first_own_zombie = NULL;
-	// 	current->last_own_zombie = NULL;
-	// } else {
-	// 	struct list_head* nth_member = it->next;
-	// 	it->next = &current->first_own_zombie->zombies_list;
-	// 	current->first_own_zombie->zombies_list.prev = it;
-
-	// 	nth_member->prev = &current->last_own_zombie->zombies_list;
-	// 	current->last_own_zombie->zombies_list.next = nth_member;
-
-	// 	current->first_own_zombie = list_entry(nth_member,task_t,zombies_list);
-	// 	list_splice(it->next, &adopter->last_own_zombie->zombies_list);
-	// }
-	// adopter->last_own_zombie = list_entry(&adopter->first_own_zombie->zombies_list.prev, task_t, zombies_list);		
+	current->zombies_count -= n;
 
 	return 0;
 }
